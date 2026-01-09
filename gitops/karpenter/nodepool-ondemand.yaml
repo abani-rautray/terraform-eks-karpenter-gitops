@@ -1,0 +1,18 @@
+apiVersion: karpenter.sh/v1beta1
+kind: NodePool
+metadata:
+  name: ondemand
+spec:
+  disruption:
+    consolidationPolicy: WhenEmpty
+    consolidateAfter: 60s
+
+  template:
+    spec:
+      nodeClassRef:
+        name: default
+
+      requirements:
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["on-demand"]
