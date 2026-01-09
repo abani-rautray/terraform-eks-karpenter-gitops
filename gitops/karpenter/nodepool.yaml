@@ -5,7 +5,7 @@ metadata:
 spec:
   disruption:
     consolidationPolicy: WhenUnderutilized
-    consolidateAfter: 30s
+    
 
   limits:
     cpu: "1000"
