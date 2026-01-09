@@ -5,7 +5,7 @@ metadata:
 spec:
   amiFamily: AL2
 
-  role: karpenter-node-eks-karpenter
+  role: karpenter-node-eks-karpenter-demo
 
   subnetSelectorTerms:
     - tags:

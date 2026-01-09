@@ -12,8 +12,12 @@ resource "helm_release" "argocd" {
   
   # Force Helm to skip cache and download fresh
   skip_crds        = false
-  wait             = true
+  wait             = false
   timeout          = 600
+
+  lifecycle {
+    ignore_changes = all
+  }
   
   # Disable cache-related features that cause issues on Windows
   dependency_update = true

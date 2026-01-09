@@ -1,106 +1,54 @@
 ############################################
-# KARPENTER HELM RELEASE
-# (Karpenter v0.16.3 - with proper env vars)
+# EKS
 ############################################
-resource "helm_release" "karpenter" {
-  name             = "karpenter"
-  namespace        = var.karpenter_namespace
-  chart            = "karpenter"
-  repository       = "https://charts.karpenter.sh"
-  version          = "0.16.3"
-  create_namespace = true
-  
-  skip_crds        = false
-  wait             = false
-  timeout          = 300
-  
-  dependency_update = true
+output "cluster_name" {
+  description = "EKS cluster name"
+  value       = aws_eks_cluster.this.name
+}
 
-  ##########################################
-  # CLUSTER SETTINGS (AS ENV VARS)
-  ##########################################
-  set {
-    name  = "controller.env[0].name"
-    value = "CLUSTER_NAME"
-  }
+output "cluster_endpoint" {
+  description = "EKS cluster API endpoint"
+  value       = aws_eks_cluster.this.endpoint
+}
 
-  set {
-    name  = "controller.env[0].value"
-    value = data.terraform_remote_state.infra.outputs.cluster_name
-  }
+output "cluster_ca_certificate" {
+  description = "Base64 encoded EKS cluster CA certificate"
+  value       = aws_eks_cluster.this.certificate_authority[0].data
+}
 
-  set {
-    name  = "controller.env[1].name"
-    value = "CLUSTER_ENDPOINT"
-  }
+############################################
+# KARPENTER
+############################################
+output "karpenter_iam_role_arn" {
+  description = "IAM role ARN used by Karpenter controller (IRSA)"
+  value       = aws_iam_role.karpenter_controller.arn
+}
 
-  set {
-    name  = "controller.env[1].value"
-    value = data.terraform_remote_state.infra.outputs.cluster_endpoint
-  }
+output "karpenter_node_role_arn" {
+  description = "IAM role ARN for Karpenter-managed nodes"
+  value       = aws_iam_role.karpenter_node.arn
+}
 
-  set {
-    name  = "controller.env[2].name"
-    value = "AWS_DEFAULT_INSTANCE_PROFILE"
-  }
+output "karpenter_instance_profile_name" {
+  description = "Instance profile name for Karpenter-managed nodes"
+  value       = aws_iam_instance_profile.karpenter.name
+}
 
-  set {
-    name  = "controller.env[2].value"
-    value = data.terraform_remote_state.infra.outputs.karpenter_instance_profile_name
-  }
+output "karpenter_interruption_queue_name" {
+  description = "SQS queue name for Karpenter interruption handling"
+  value       = aws_sqs_queue.karpenter.name
+}
 
-  ##########################################
-  # IRSA (IAM ROLE FOR SERVICE ACCOUNT)
-  ##########################################
-  set {
-    name  = "serviceAccount.create"
-    value = "true"
-  }
+############################################
+# NETWORKING (OPTIONAL, BUT USEFUL)
+############################################
+output "private_subnet_ids" {
+  description = "Private subnet IDs for Karpenter discovery"
+  value       = aws_subnet.private[*].id
+}
 
-  set {
-    name  = "serviceAccount.name"
-    value = "karpenter"
-  }
 
-  set {
-    name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
-    value = data.terraform_remote_state.infra.outputs.karpenter_iam_role_arn
-  }
-
-  ##########################################
-  # CONTROLLER RESOURCES (SAFE DEFAULTS)
-  ##########################################
-  set {
-    name  = "controller.resources.requests.cpu"
-    value = "100m"
-  }
-
-  set {
-    name  = "controller.resources.requests.memory"
-    value = "256Mi"
-  }
-
-  set {
-    name  = "controller.resources.limits.cpu"
-    value = "1"
-  }
-
-  set {
-    name  = "controller.resources.limits.memory"
-    value = "1Gi"
-  }
-
-  ##########################################
-  # LOGGING
-  ##########################################
-  set {
-    name  = "logLevel"
-    value = "debug"
-  }
-  
-  # Add dependencies to ensure proper order
-  depends_on = [
-    data.terraform_remote_state.infra,
-    helm_release.argocd
-  ]
+output "public_subnet_ids" {
+  description = "Public subnet IDs"
+  value       = aws_subnet.public[*].id
 }

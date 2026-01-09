@@ -1,56 +1,21 @@
 ############################################
-# KARPENTER HELM RELEASE
-# (Karpenter v0.16.3 - with proper env vars)
+# KARPENTER HELM RELEASE (CRDs + Controller)
 ############################################
 resource "helm_release" "karpenter" {
-  name             = "karpenter"
-  namespace        = var.karpenter_namespace
-  chart            = "karpenter"
-  repository       = "https://charts.karpenter.sh"
-  version          = "0.16.3"
+  name       = "karpenter"
+  namespace  = "karpenter"
+
+  repository = "oci://public.ecr.aws/karpenter"
+  chart      = "karpenter"
+  version    = "0.37.7"
+
   create_namespace = true
-  
-  skip_crds        = false
-  wait             = false
-  timeout          = 300
-  
-  dependency_update = true
+  skip_crds = false   # <-- let Helm install CRDs
+  wait      = true
+  timeout   = 900     # CRDs + webhooks need time
 
   ##########################################
-  # CLUSTER SETTINGS (AS ENV VARS)
-  ##########################################
-  set {
-    name  = "controller.env[0].name"
-    value = "CLUSTER_NAME"
-  }
-
-  set {
-    name  = "controller.env[0].value"
-    value = data.terraform_remote_state.infra.outputs.cluster_name
-  }
-
-  set {
-    name  = "controller.env[1].name"
-    value = "CLUSTER_ENDPOINT"
-  }
-
-  set {
-    name  = "controller.env[1].value"
-    value = data.terraform_remote_state.infra.outputs.cluster_endpoint
-  }
-
-  set {
-    name  = "controller.env[2].name"
-    value = "AWS_DEFAULT_INSTANCE_PROFILE"
-  }
-
-  set {
-    name  = "controller.env[2].value"
-    value = data.terraform_remote_state.infra.outputs.karpenter_instance_profile_name
-  }
-
-  ##########################################
-  # IRSA (IAM ROLE FOR SERVICE ACCOUNT)
+  # SERVICE ACCOUNT (IRSA)
   ##########################################
   set {
     name  = "serviceAccount.create"
@@ -64,43 +29,56 @@ resource "helm_release" "karpenter" {
 
   set {
     name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
-    value = data.terraform_remote_state.infra.outputs.karpenter_iam_role_arn
+    value = var.karpenter_controller_role_arn
   }
 
   ##########################################
-  # CONTROLLER RESOURCES (SAFE DEFAULTS)
+  # REQUIRED ENV VARS (0.37.x)
   ##########################################
   set {
-    name  = "controller.resources.requests.cpu"
-    value = "100m"
+    name  = "controller.env[0].name"
+    value = "CLUSTER_NAME"
   }
 
   set {
-    name  = "controller.resources.requests.memory"
-    value = "256Mi"
+    name  = "controller.env[0].value"
+    value = var.cluster_name
   }
 
   set {
-    name  = "controller.resources.limits.cpu"
-    value = "1"
+    name  = "controller.env[1].name"
+    value = "CLUSTER_ENDPOINT"
   }
 
   set {
-    name  = "controller.resources.limits.memory"
-    value = "1Gi"
+    name  = "controller.env[1].value"
+    value = var.cluster_endpoint
   }
 
   ##########################################
-  # LOGGING
+  # OPTIONAL BUT SAFE DEFAULTS
   ##########################################
+  
   set {
     name  = "logLevel"
-    value = "debug"
+    value = "info"
   }
-  
-  # Add dependencies to ensure proper order
+
+  set {
+  name  = "settings.aws.interruptionQueue"
+  value = aws_sqs_queue.karpenter_interruption.name
+}
+
+
+  ##########################################
+  # ORDERING
+  ##########################################
   depends_on = [
-    data.terraform_remote_state.infra,
+    
+    aws_sqs_queue.karpenter_interruption,
     helm_release.argocd
   ]
 }
+
+  
+# echo "kubectl get pods -n karpenter"

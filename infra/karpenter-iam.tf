@@ -46,6 +46,22 @@ resource "aws_iam_role" "karpenter_controller" {
 # KARPENTER CONTROLLER POLICY
 ############################################
 data "aws_iam_policy_document" "karpenter_policy" {
+
+  statement {
+  sid    = "AllowKarpenterInterruptionQueueRead"
+  effect = "Allow"
+  actions = [
+    "sqs:GetQueueAttributes",
+    "sqs:GetQueueUrl",
+    "sqs:ReceiveMessage",
+    "sqs:DeleteMessage"
+  ]
+  resources = [
+    aws_sqs_queue.karpenter.arn
+  ]
+}
+
+
   statement {
     sid = "AllowScopedEC2InstanceActions"
     actions = [
