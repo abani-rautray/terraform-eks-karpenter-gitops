@@ -52,3 +52,7 @@ output "public_subnet_ids" {
   description = "Public subnet IDs"
   value       = aws_subnet.public[*].id
 }
+
+output "karpenter_interruption_queue_arn" {
+  value = aws_sqs_queue.karpenter.arn
+}

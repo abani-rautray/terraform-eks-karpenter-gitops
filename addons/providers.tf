@@ -21,7 +21,7 @@ terraform {
 # AWS PROVIDER
 ############################################
 provider "aws" {
-  region = var.aws_region
+  region  = var.aws_region
   profile = "devops"
 }
 
@@ -30,32 +30,36 @@ provider "aws" {
 ############################################
 data "terraform_remote_state" "infra" {
   backend = "local"
-
   config = {
     path = "../infra/terraform.tfstate"
   }
 }
 
 ############################################
-# KUBERNETES PROVIDER
+# KUBERNETES PROVIDER (USE EXEC AUTH)
 ############################################
 provider "kubernetes" {
   host                   = data.terraform_remote_state.infra.outputs.cluster_endpoint
   cluster_ca_certificate = base64decode(
     data.terraform_remote_state.infra.outputs.cluster_ca_certificate
   )
-  token = data.aws_eks_cluster_auth.this.token
+
+  exec {
+    api_version = "client.authentication.k8s.io/v1beta1"
+    command     = "aws"
+    args = [
+      "eks",
+      "get-token",
+      "--cluster-name",
+      data.terraform_remote_state.infra.outputs.cluster_name,
+      "--region",
+      var.aws_region
+    ]
+  }
 }
 
 ############################################
-# EKS AUTH TOKEN (SHORT-LIVED)
-############################################
-data "aws_eks_cluster_auth" "this" {
-  name = data.terraform_remote_state.infra.outputs.cluster_name
-}
-
-############################################
-# HELM PROVIDER
+# HELM PROVIDER (USE SAME EXEC AUTH)
 ############################################
 provider "helm" {
   kubernetes {
@@ -63,7 +67,18 @@ provider "helm" {
     cluster_ca_certificate = base64decode(
       data.terraform_remote_state.infra.outputs.cluster_ca_certificate
     )
-    token = data.aws_eks_cluster_auth.this.token
+
+    exec {
+      api_version = "client.authentication.k8s.io/v1beta1"
+      command     = "aws"
+      args = [
+        "eks",
+        "get-token",
+        "--cluster-name",
+        data.terraform_remote_state.infra.outputs.cluster_name,
+        "--region",
+        var.aws_region
+      ]
+    }
   }
 }
-

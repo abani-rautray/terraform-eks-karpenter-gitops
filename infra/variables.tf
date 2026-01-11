@@ -67,3 +67,11 @@ variable "node_max_size" {
   type        = number
   default     = 3
 }
+
+# variable "private_subnet_ids" {
+#   type = list(string)
+# }
+
+# variable "public_subnet_ids" {
+#   type = list(string)
+# }

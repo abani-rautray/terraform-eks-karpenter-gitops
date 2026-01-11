@@ -1,22 +1,22 @@
 ############################################
 # KARPENTER CONTROLLER IAM ROLE (IRSA)
 ############################################
-data "aws_iam_policy_document" "karpenter_assume" {
-  statement {
-    actions = ["sts:AssumeRoleWithWebIdentity"]
+# data "aws_iam_policy_document" "karpenter_assume" {
+#   statement {
+#     actions = ["sts:AssumeRoleWithWebIdentity"]
 
-    principals {
-      type        = "Federated"
-      identifiers = [aws_iam_openid_connect_provider.this.arn]
-    }
+#     principals {
+#       type        = "Federated"
+#       identifiers = [aws_iam_openid_connect_provider.this.arn]
+#     }
 
-    condition {
-      test     = "StringEquals"
-      variable = "${replace(aws_iam_openid_connect_provider.this.url, "https://", "")}:sub"
-      values   = ["system:serviceaccount:karpenter:karpenter"]
-    }
-  }
-}
+#     condition {
+#       test     = "StringEquals"
+#       variable = "${replace(aws_iam_openid_connect_provider.this.url, "https://", "")}:sub"
+#       values   = ["system:serviceaccount:karpenter:karpenter"]
+#     }
+#   }
+# }
 
 resource "aws_iam_role" "karpenter_controller" {
   name = "${var.cluster_name}-karpenter-controller"
@@ -250,7 +250,9 @@ data "aws_iam_policy_document" "karpenter_policy" {
     actions = [
       "iam:AddRoleToInstanceProfile",
       "iam:RemoveRoleFromInstanceProfile",
-      "iam:DeleteInstanceProfile"
+      "iam:DeleteInstanceProfile",
+      "iam:CreateInstanceProfile",
+      "iam:GetInstanceProfile"
     ]
     resources = ["*"]
     condition {
