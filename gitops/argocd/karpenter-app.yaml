@@ -5,14 +5,32 @@ metadata:
   namespace: argocd
 spec:
   project: default
+
   source:
     repoURL: https://github.com/abani-rautray/terraform-eks-karpenter-gitops.git
     targetRevision: main
     path: gitops/karpenter
+
   destination:
     server: https://kubernetes.default.svc
     namespace: karpenter
+
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
+
+  ignoreDifferences:
+    - group: karpenter.sh
+      kind: NodePool
+      jsonPointers:
+        - /status
+        - /metadata/annotations
+        - /spec/template
+        - /spec/disruption
+
+    - group: karpenter.k8s.aws
+      kind: EC2NodeClass
+      jsonPointers:
+        - /status
+        - /metadata/annotations
