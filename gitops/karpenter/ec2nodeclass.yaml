@@ -5,8 +5,12 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 spec:
-  amiFamily: AL2023  
-  role: "karpenter-node-eks-karpenter-demo"  
+  amiFamily: AL2023
+
+  amiSelectorTerms:
+    - alias: al2023@latest
+
+  role: karpenter-node-eks-karpenter-demo
 
   subnetSelectorTerms:
     - tags:
