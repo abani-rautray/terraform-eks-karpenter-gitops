@@ -2,7 +2,7 @@ apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
   name: spot
-  namespace: karpenter
+  
   annotations:
     argocd.argoproj.io/sync-wave: "2"
 spec:
