@@ -31,3 +31,4 @@ crash.log
 crash.*.log
 reset-addons.sh
 00-full-reset.sh
+.awscredentials

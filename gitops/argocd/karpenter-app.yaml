@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: karpenter
+  name: karpenter-config
   namespace: argocd
 spec:
   project: default
@@ -13,15 +13,14 @@ spec:
 
   destination:
     server: https://kubernetes.default.svc
-    namespace: kube-system
+    # namespace: kube-system
 
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
-      - CreateNamespace=true
-      - PruneLast=true
+      - RespectIgnoreDifferences=true
     retry:
       limit: 5
       backoff:
@@ -32,12 +31,16 @@ spec:
   ignoreDifferences:
     - group: karpenter.sh
       kind: NodePool
-      jsonPointers:
-        - /status
-        - /metadata/annotations
+      jqPathExpressions:
+      - .status
+      - .metadata.annotations
+      - .metadata.generation
+      - .spec.template.metadata
 
     - group: karpenter.k8s.aws
       kind: EC2NodeClass
-      jsonPointers:
-        - /status
-        - /metadata/annotations
+      jqPathExpressions:
+      - .status
+      - .metadata.annotations
+      - .metadata.generation
+      - .spec.template.metadata

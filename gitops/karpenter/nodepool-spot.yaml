@@ -40,5 +40,4 @@ spec:
       
       taints: []
       
-      kubelet:
-        maxPods: 110
+      

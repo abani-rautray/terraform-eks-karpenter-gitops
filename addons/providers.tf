@@ -36,13 +36,32 @@ data "terraform_remote_state" "infra" {
 }
 
 ############################################
+# LOCALS FOR SAFE PROVIDER CONFIGURATION
+############################################
+locals {
+  # Use try() to safely handle missing state/outputs
+  cluster_endpoint = try(
+    data.terraform_remote_state.infra.outputs.cluster_endpoint,
+    ""
+  )
+  
+  cluster_ca_certificate = try(
+    base64decode(data.terraform_remote_state.infra.outputs.cluster_ca_certificate),
+    ""
+  )
+  
+  cluster_name = try(
+    data.terraform_remote_state.infra.outputs.cluster_name,
+    ""
+  )
+}
+
+############################################
 # KUBERNETES PROVIDER (USE EXEC AUTH)
 ############################################
 provider "kubernetes" {
-  host                   = data.terraform_remote_state.infra.outputs.cluster_endpoint
-  cluster_ca_certificate = base64decode(
-    data.terraform_remote_state.infra.outputs.cluster_ca_certificate
-  )
+  host                   = local.cluster_endpoint
+  cluster_ca_certificate = local.cluster_ca_certificate
 
   exec {
     api_version = "client.authentication.k8s.io/v1beta1"
@@ -51,9 +70,11 @@ provider "kubernetes" {
       "eks",
       "get-token",
       "--cluster-name",
-      data.terraform_remote_state.infra.outputs.cluster_name,
+      local.cluster_name,
       "--region",
-      var.aws_region
+      var.aws_region,
+      "--profile",
+      "devops"
     ]
   }
 }
@@ -63,10 +84,8 @@ provider "kubernetes" {
 ############################################
 provider "helm" {
   kubernetes {
-    host                   = data.terraform_remote_state.infra.outputs.cluster_endpoint
-    cluster_ca_certificate = base64decode(
-      data.terraform_remote_state.infra.outputs.cluster_ca_certificate
-    )
+    host                   = local.cluster_endpoint
+    cluster_ca_certificate = local.cluster_ca_certificate
 
     exec {
       api_version = "client.authentication.k8s.io/v1beta1"
@@ -75,9 +94,11 @@ provider "helm" {
         "eks",
         "get-token",
         "--cluster-name",
-        data.terraform_remote_state.infra.outputs.cluster_name,
+        local.cluster_name,
         "--region",
-        var.aws_region
+        var.aws_region,
+        "--profile",
+        "devops"
       ]
     }
   }

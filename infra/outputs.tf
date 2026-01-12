@@ -56,3 +56,8 @@ output "public_subnet_ids" {
 output "karpenter_interruption_queue_arn" {
   value = aws_sqs_queue.karpenter.arn
 }
+
+output "karpenter_node_role_name" {
+  description = "IAM role name for Karpenter-managed nodes"
+  value       = aws_iam_role.karpenter_node.name
+}

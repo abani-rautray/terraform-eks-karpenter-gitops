@@ -1,22 +1,11 @@
 ############################################
+# GET CURRENT AWS ACCOUNT ID
+############################################
+data "aws_caller_identity" "current" {}
+
+############################################
 # KARPENTER CONTROLLER IAM ROLE (IRSA)
 ############################################
-# data "aws_iam_policy_document" "karpenter_assume" {
-#   statement {
-#     actions = ["sts:AssumeRoleWithWebIdentity"]
-
-#     principals {
-#       type        = "Federated"
-#       identifiers = [aws_iam_openid_connect_provider.this.arn]
-#     }
-
-#     condition {
-#       test     = "StringEquals"
-#       variable = "${replace(aws_iam_openid_connect_provider.this.url, "https://", "")}:sub"
-#       values   = ["system:serviceaccount:karpenter:karpenter"]
-#     }
-#   }
-# }
 
 resource "aws_iam_role" "karpenter_controller" {
   name = "${var.cluster_name}-karpenter-controller"
@@ -30,261 +19,176 @@ resource "aws_iam_role" "karpenter_controller" {
       }
       Action = "sts:AssumeRoleWithWebIdentity"
       Condition = {
-        StringEquals = {
-          "${replace(
-            aws_iam_openid_connect_provider.this.url,
-            "https://",
-            ""
-          )}:sub" = "system:serviceaccount:karpenter:karpenter"
+  StringEquals = {
+    "${replace(
+      aws_iam_openid_connect_provider.this.url,
+      "https://",
+      ""
+    )}:aud" = "sts.amazonaws.com"
+
+    "${replace(
+      aws_iam_openid_connect_provider.this.url,
+      "https://",
+      ""
+    )}:sub" = "system:serviceaccount:kube-system:karpenter"
         }
-      }
+    }
+
     }]
   })
 }
 
 ############################################
-# KARPENTER CONTROLLER POLICY
+# KARPENTER CONTROLLER POLICY (FIXED)
 ############################################
+
 data "aws_iam_policy_document" "karpenter_policy" {
 
+  ############################################
+  # SQS INTERRUPTION QUEUE
+  ############################################
   statement {
-  sid    = "AllowKarpenterInterruptionQueueRead"
-  effect = "Allow"
-  actions = [
-    "sqs:GetQueueAttributes",
-    "sqs:GetQueueUrl",
-    "sqs:ReceiveMessage",
-    "sqs:DeleteMessage"
-  ]
-  resources = [
-    aws_sqs_queue.karpenter.arn
-  ]
-}
+    sid    = "AllowKarpenterInterruptionQueueRead"
+    effect = "Allow"
+    actions = [
+      "sqs:GetQueueAttributes",
+      "sqs:GetQueueUrl",
+      "sqs:ReceiveMessage",
+      "sqs:DeleteMessage"
+    ]
+    resources = [aws_sqs_queue.karpenter.arn]
+  }
 
-
+  ############################################
+  # EC2 INSTANCE & FLEET CREATION
+  ############################################
   statement {
-    sid = "AllowScopedEC2InstanceActions"
+    sid = "AllowEC2RunAndFleet"
     actions = [
       "ec2:RunInstances",
       "ec2:CreateFleet"
     ]
-    resources = [
-      "arn:aws:ec2:${var.aws_region}::image/*",
-      "arn:aws:ec2:${var.aws_region}::snapshot/*",
-      "arn:aws:ec2:${var.aws_region}:*:spot-instances-request/*",
-      "arn:aws:ec2:${var.aws_region}:*:security-group/*",
-      "arn:aws:ec2:${var.aws_region}:*:subnet/*",
-      "arn:aws:ec2:${var.aws_region}:*:launch-template/*"
-    ]
+    resources = ["*"]
   }
 
+  ############################################
+  # REQUIRED: LAUNCH TEMPLATE PERMISSIONS
+  ############################################
   statement {
-    sid = "AllowScopedEC2InstanceActionsWithTags"
+    sid = "AllowLaunchTemplateManagement"
     actions = [
-      "ec2:RunInstances",
-      "ec2:CreateFleet"
+      "ec2:CreateLaunchTemplate",
+      "ec2:CreateLaunchTemplateVersion",
+      "ec2:DeleteLaunchTemplate",
+      "ec2:DeleteLaunchTemplateVersions",
+      "ec2:DescribeLaunchTemplates",
+      "ec2:DescribeLaunchTemplateVersions",
+      "ec2:ModifyLaunchTemplate"
     ]
-    resources = [
-      "arn:aws:ec2:${var.aws_region}:*:instance/*",
-      "arn:aws:ec2:${var.aws_region}:*:volume/*",
-      "arn:aws:ec2:${var.aws_region}:*:network-interface/*",
-      "arn:aws:ec2:${var.aws_region}:*:launch-template/*"
-    ]
-    condition {
-      test     = "StringEquals"
-      variable = "aws:RequestedRegion"
-      values   = [var.aws_region]
-    }
+    resources = ["*"]
   }
 
+  ############################################
+  # EC2 TAGGING (REQUIRED)
+  ############################################
   statement {
-    sid = "AllowScopedResourceCreationTagging"
-    actions = [
-      "ec2:CreateTags"
-    ]
+    sid = "AllowEC2Tagging"
+    actions = ["ec2:CreateTags"]
     resources = [
-      "arn:aws:ec2:${var.aws_region}:*:instance/*",
-      "arn:aws:ec2:${var.aws_region}:*:volume/*",
-      "arn:aws:ec2:${var.aws_region}:*:network-interface/*",
-      "arn:aws:ec2:${var.aws_region}:*:launch-template/*"
+      "arn:aws:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:instance/*",
+      "arn:aws:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:volume/*",
+      "arn:aws:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:network-interface/*",
+      "arn:aws:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:launch-template/*"
     ]
-    condition {
-      test     = "StringEquals"
-      variable = "ec2:CreateAction"
-      values = [
-        "RunInstances",
-        "CreateFleet"
-      ]
-    }
   }
 
+  ############################################
+  # EC2 TERMINATION
+  ############################################
   statement {
-    sid = "AllowMachineMigrationTagging"
-    actions = [
-      "ec2:CreateTags"
-    ]
-    resources = [
-      "arn:aws:ec2:${var.aws_region}:*:instance/*"
-    ]
-    condition {
-      test     = "StringEquals"
-      variable = "ec2:ResourceTag/karpenter.sh/discovery"
-      values   = [var.cluster_name]
-    }
+    sid = "AllowEC2Termination"
+    actions = ["ec2:TerminateInstances"]
+    resources = ["*"]
   }
 
+  ############################################
+  # EC2 READ-ONLY (REGIONAL)
+  ############################################
   statement {
-    sid = "AllowScopedDeletion"
-    actions = [
-      "ec2:TerminateInstances",
-      "ec2:DeleteLaunchTemplate"
-    ]
-    resources = [
-      "arn:aws:ec2:${var.aws_region}:*:instance/*",
-      "arn:aws:ec2:${var.aws_region}:*:launch-template/*"
-    ]
-    condition {
-      test     = "StringEquals"
-      variable = "ec2:ResourceTag/karpenter.sh/discovery"
-      values   = [var.cluster_name]
-    }
-  }
-
-  statement {
-    sid = "AllowRegionalReadActions"
+    sid = "AllowEC2Read"
     actions = [
       "ec2:DescribeAvailabilityZones",
       "ec2:DescribeImages",
       "ec2:DescribeInstances",
-      "ec2:DescribeInstanceTypeOfferings",
       "ec2:DescribeInstanceTypes",
+      "ec2:DescribeInstanceTypeOfferings",
       "ec2:DescribeLaunchTemplates",
       "ec2:DescribeSecurityGroups",
       "ec2:DescribeSpotPriceHistory",
       "ec2:DescribeSubnets"
     ]
     resources = ["*"]
-    condition {
-      test     = "StringEquals"
-      variable = "aws:RequestedRegion"
-      values   = [var.aws_region]
-    }
+  }
+
+  ############################################
+  # PRICING + SSM
+  ############################################
+  statement {
+    sid       = "AllowPricing"
+    actions   = ["pricing:GetProducts"]
+    resources = ["*"]
   }
 
   statement {
-    sid = "AllowSSMReadActions"
-    actions = [
-      "ssm:GetParameter"
-    ]
+    sid     = "AllowSSM"
+    actions = ["ssm:GetParameter"]
     resources = [
       "arn:aws:ssm:${var.aws_region}::parameter/aws/service/*"
     ]
   }
 
+  ############################################
+  # PASS NODE ROLE (CRITICAL)
+  ############################################
   statement {
-    sid = "AllowPricingReadActions"
-    actions = [
-      "pricing:GetProducts"
-    ]
-    resources = ["*"]
-  }
-
-  statement {
-    sid = "AllowPassingInstanceRole"
-    actions = [
-      "iam:PassRole"
-    ]
+    sid = "AllowPassNodeRole"
+    actions = ["iam:PassRole"]
     resources = [
       aws_iam_role.karpenter_node.arn
     ]
   }
 
+  ############################################
+  # INSTANCE PROFILE MANAGEMENT
+  ############################################
   statement {
-    sid = "AllowScopedInstanceProfileCreationActions"
+    sid = "AllowInstanceProfileManagement"
     actions = [
-      "iam:CreateInstanceProfile"
-    ]
-    resources = ["*"]
-    condition {
-      test     = "StringEquals"
-      variable = "aws:RequestTag/kubernetes.io/cluster/${var.cluster_name}"
-      values   = ["owned"]
-    }
-    condition {
-      test     = "StringEquals"
-      variable = "aws:RequestTag/topology.kubernetes.io/region"
-      values   = [var.aws_region]
-    }
-  }
-
-  statement {
-    sid = "AllowScopedInstanceProfileTagActions"
-    actions = [
+      "iam:CreateInstanceProfile",
+      "iam:DeleteInstanceProfile",
+      "iam:AddRoleToInstanceProfile",
+      "iam:RemoveRoleFromInstanceProfile",
+      "iam:GetInstanceProfile",
       "iam:TagInstanceProfile"
     ]
     resources = ["*"]
-    condition {
-      test     = "StringEquals"
-      variable = "aws:ResourceTag/kubernetes.io/cluster/${var.cluster_name}"
-      values   = ["owned"]
-    }
-    condition {
-      test     = "StringEquals"
-      variable = "aws:ResourceTag/topology.kubernetes.io/region"
-      values   = [var.aws_region]
-    }
-    condition {
-      test     = "StringEquals"
-      variable = "aws:RequestTag/kubernetes.io/cluster/${var.cluster_name}"
-      values   = ["owned"]
-    }
-    condition {
-      test     = "StringEquals"
-      variable = "aws:RequestTag/topology.kubernetes.io/region"
-      values   = [var.aws_region]
-    }
   }
 
+  ############################################
+  # EKS CLUSTER DISCOVERY
+  ############################################
   statement {
-    sid = "AllowScopedInstanceProfileActions"
-    actions = [
-      "iam:AddRoleToInstanceProfile",
-      "iam:RemoveRoleFromInstanceProfile",
-      "iam:DeleteInstanceProfile",
-      "iam:CreateInstanceProfile",
-      "iam:GetInstanceProfile"
-    ]
-    resources = ["*"]
-    condition {
-      test     = "StringEquals"
-      variable = "aws:ResourceTag/kubernetes.io/cluster/${var.cluster_name}"
-      values   = ["owned"]
-    }
-    condition {
-      test     = "StringEquals"
-      variable = "aws:ResourceTag/topology.kubernetes.io/region"
-      values   = [var.aws_region]
-    }
-  }
-
-  statement {
-    sid = "AllowInstanceProfileReadActions"
-    actions = [
-      "iam:GetInstanceProfile"
-    ]
-    resources = ["*"]
-  }
-
-  statement {
-    sid = "AllowAPIServerEndpointDiscovery"
-    actions = [
-      "eks:DescribeCluster"
-    ]
+    sid = "AllowEKSDescribe"
+    actions = ["eks:DescribeCluster"]
     resources = [
-      "arn:aws:eks:${var.aws_region}:*:cluster/${var.cluster_name}"
+      "arn:aws:eks:${var.aws_region}:${data.aws_caller_identity.current.account_id}:cluster/${var.cluster_name}"
     ]
   }
 }
+
+############################################
+# ATTACH POLICY TO CONTROLLER ROLE
+############################################
 
 resource "aws_iam_policy" "karpenter" {
   name   = "karpenter-policy-${var.cluster_name}"
@@ -297,8 +201,9 @@ resource "aws_iam_role_policy_attachment" "karpenter_attach" {
 }
 
 ############################################
-# KARPENTER NODE ROLE (FOR EC2 INSTANCES)
+# KARPENTER NODE ROLE (EC2)
 ############################################
+
 resource "aws_iam_role" "karpenter_node" {
   name = "karpenter-node-${var.cluster_name}"
 
@@ -312,7 +217,6 @@ resource "aws_iam_role" "karpenter_node" {
   })
 }
 
-# Attach required AWS managed policies for nodes
 resource "aws_iam_role_policy_attachment" "karpenter_node_worker" {
   role       = aws_iam_role.karpenter_node.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
@@ -334,8 +238,9 @@ resource "aws_iam_role_policy_attachment" "karpenter_node_ssm" {
 }
 
 ############################################
-# INSTANCE PROFILE FOR KARPENTER NODES
+# INSTANCE PROFILE
 ############################################
+
 resource "aws_iam_instance_profile" "karpenter" {
   name = "karpenter-node-${var.cluster_name}"
   role = aws_iam_role.karpenter_node.name
@@ -344,26 +249,10 @@ resource "aws_iam_instance_profile" "karpenter" {
 ############################################
 # SQS QUEUE FOR INTERRUPTION HANDLING
 ############################################
+
 resource "aws_sqs_queue" "karpenter" {
   name                      = "karpenter-${var.cluster_name}"
   message_retention_seconds = 300
   sqs_managed_sse_enabled   = true
 }
 
-data "aws_iam_policy_document" "karpenter_interruption_queue" {
-  statement {
-    sid     = "EC2InterruptionPolicy"
-    effect  = "Allow"
-    actions = ["sqs:SendMessage"]
-    principals {
-      type        = "Service"
-      identifiers = ["events.amazonaws.com", "sqs.amazonaws.com"]
-    }
-    resources = [aws_sqs_queue.karpenter.arn]
-  }
-}
-
-resource "aws_sqs_queue_policy" "karpenter_interruption_queue" {
-  queue_url = aws_sqs_queue.karpenter.id
-  policy    = data.aws_iam_policy_document.karpenter_interruption_queue.json
-}
