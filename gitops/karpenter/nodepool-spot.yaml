@@ -1,19 +1,18 @@
 apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
-  name: ondemand
+  name: spot
   namespace: karpenter
   annotations:
     argocd.argoproj.io/sync-wave: "2"
 spec:
   disruption:
     consolidationPolicy: WhenEmptyOrUnderutilized
-    consolidateAfter: 60s
+    consolidateAfter: 30s
   
-  # Prevent runaway costs
   limits:
-    cpu: "100"
-    memory: 200Gi
+    cpu: "200"
+    memory: 400Gi
   
   template:
     spec:
@@ -25,24 +24,20 @@ spec:
       requirements:
         - key: karpenter.sh/capacity-type
           operator: In
-          values: ["on-demand"]
+          values: ["spot"]
         
-        # Limit to specific instance families
         - key: karpenter.k8s.aws/instance-family
           operator: In
-          values: ["t3", "t3a", "m5", "m5a"]
+          values: ["t3", "t3a", "m5", "m5a", "c5", "c5a"]
         
-        # Exclude very small and very large instances
         - key: karpenter.k8s.aws/instance-size
           operator: NotIn
           values: ["nano", "micro", "metal", "24xlarge", "32xlarge"]
         
-        # Use x86 architecture
         - key: kubernetes.io/arch
           operator: In
           values: ["amd64"]
       
-      # Set taints/labels if needed
       taints: []
       
       kubelet:
