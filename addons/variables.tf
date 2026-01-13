@@ -39,3 +39,8 @@ variable "karpenter_namespace" {
 #   description = "IAM role ARN for Karpenter controller (IRSA)"
 #   type        = string
 # }
+variable "grafana_admin_password" {
+  description = "Grafana admin password"
+  type        = string
+  sensitive   = true
+}

@@ -32,15 +32,11 @@ spec:
     - group: karpenter.sh
       kind: NodePool
       jqPathExpressions:
+      - .spec
       - .status
-      - .metadata.annotations
-      - .metadata.generation
-      - .spec.template.metadata
 
     - group: karpenter.k8s.aws
       kind: EC2NodeClass
       jqPathExpressions:
+      - .spec
       - .status
-      - .metadata.annotations
-      - .metadata.generation
-      - .spec.template.metadata
