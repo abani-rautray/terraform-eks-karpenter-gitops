@@ -89,12 +89,16 @@ This repository demonstrates a **production-ready Kubernetes platform on AWS EKS
 - Add workload-level HPA testing
 - Implement cost monitoring with Kubecost
 
+### 📸 Screenshots shared on LinkedIn
+
+linkdin : https://github.com/abani-rautray/terraform-eks-karpenter-gitops.git
 
 ### License
 
 This project is licensed under the
+
 MIT License
 
 
-Screenshots available in LinkedIn post.
-linkdin : https://github.com/abani-rautray/terraform-eks-karpenter-gitops.git
+
+
