@@ -17,16 +17,16 @@ This repository demonstrates a **production-ready Kubernetes platform on AWS EKS
 
 ---
 
-## 🏗️ Infrastructure Components
+# 🏗️ Infrastructure Components
 
-### 1️⃣ AWS Infrastructure (Terraform)
+## 1️⃣ AWS Infrastructure (Terraform)
 - Custom VPC with public & private subnets
 - Amazon EKS cluster with OIDC provider
 - IAM roles & policies using IRSA
 - Karpenter controller and node IAM roles
 - Spot interruption handling with SQS
 
-### 2️⃣ Node Autoscaling (Karpenter)
+## 2️⃣ Node Autoscaling (Karpenter)
 - **NodePools**
   - `ondemand` – stable workloads
   - `spot` – cost-optimized workloads
@@ -35,13 +35,13 @@ This repository demonstrates a **production-ready Kubernetes platform on AWS EKS
   - Auto-discovery using cluster tags
 - Fast scale-up / scale-down based on pod demand
 
-### 3️⃣ GitOps Deployment (ArgoCD)
+## 3️⃣ GitOps Deployment (ArgoCD)
 - Declarative Kubernetes manifests
 - Auto-sync enabled
 - Drift detection & self-healing
 - Separation of infrastructure & application configs
 
-### 4️⃣ Observability Stack
+## 4️⃣ Observability Stack
 - `kube-prometheus-stack` Helm chart
 - Prometheus, Alertmanager
 - Node Exporter & kube-state-metrics
@@ -51,7 +51,7 @@ This repository demonstrates a **production-ready Kubernetes platform on AWS EKS
   - Namespaces
   - Network & storage metrics
 
-### ✨ Key Features
+## ✨ Key Features
 
 - Fully automated EKS provisioning using Terraform
 - GitOps-based Kubernetes configuration with ArgoCD
@@ -77,11 +77,11 @@ This repository demonstrates a **production-ready Kubernetes platform on AWS EKS
 └── LICENSE
 ```
 
-###  💡 Why This Project Matters
+##  💡 Why This Project Matters
 
   This project reflects real-world DevOps practices used in production environments—combining IaC, GitOps, autoscaling, and observability to build a scalable, cost-efficient Kubernetes platform on AWS.
 
-### 🔮 Future Improvements
+## 🔮 Future Improvements
 
 - Add multi-environment support (dev/stage/prod)
 - Integrate AWS Load Balancer Controller
@@ -89,11 +89,11 @@ This repository demonstrates a **production-ready Kubernetes platform on AWS EKS
 - Add workload-level HPA testing
 - Implement cost monitoring with Kubecost
 
-### 📸 Screenshots shared on LinkedIn
+## 📸 Screenshots shared on LinkedIn
 
 linkdin : https://github.com/abani-rautray/terraform-eks-karpenter-gitops.git
 
-### License
+## 📜 License
 
 This project is licensed under the
 
