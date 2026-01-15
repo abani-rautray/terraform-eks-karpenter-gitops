@@ -91,7 +91,7 @@ This repository demonstrates a **production-ready Kubernetes platform on AWS EKS
 
 ## 📸 Screenshots shared on LinkedIn
 
-linkdin : (https://www.linkedin.com/feed/update/urn:li:ugcPost:7417408120080973824/)
+linkdin : [https://www.linkedin.com/feed/update/urn:li:ugcPost:7417408120080973824/]
 
 ## 📜 License
 
